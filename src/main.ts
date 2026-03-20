@@ -20,6 +20,7 @@ import zh from "./i18n/zh";
 export default class SmartBookmarkPlugin extends Plugin {
 	settings: SmartBookmarkSettings;
 	private progressModal: ProgressModal | null = null;
+	private syncTimer: NodeJS.Timeout | null = null;
 
 	async onload() {
 		console.log("Loading Smart Bookmark plugin");
@@ -41,6 +42,20 @@ export default class SmartBookmarkPlugin extends Plugin {
 			callback: () => this.openSettingTab(),
 		});
 
+		// Add command to validate URLs
+		this.addCommand({
+			id: "validate-urls",
+			name: "Validate Bookmarks URLs",
+			callback: () => this.validateBookmarks(),
+		});
+
+		// Add command to clean invalid URLs
+		this.addCommand({
+			id: "clean-invalid-urls",
+			name: "Remove Invalid Bookmarks",
+			callback: () => this.cleanInvalidBookmarks(),
+		});
+
 		// Add ribbon icon
 		const ribbonIconEl = this.addRibbonIcon("bookmark", en.pluginName, () => {
 			this.showImportModal();
@@ -48,10 +63,18 @@ export default class SmartBookmarkPlugin extends Plugin {
 
 		// Add settings tab
 		this.addSettingTab(new SmartBookmarkSettingTab(this.app, this));
+
+		// Setup sync timer
+		this.setupSyncTimer();
 	}
 
 	onunload() {
 		console.log("Unloading Smart Bookmark plugin");
+
+		// Clear sync timer
+		if (this.syncTimer) {
+			clearTimeout(this.syncTimer);
+		}
 	}
 
 	async loadSettings() {
@@ -70,6 +93,11 @@ export default class SmartBookmarkPlugin extends Plugin {
 				groupByFolder: false,
 				singleDocumentMode: true,
 				bookmarkFileName: "Smart Bookmarks.md",
+				syncInterval: "manual",
+				lastSyncTime: undefined,
+				validateUrls: false,
+				urlValidationTimeout: 5,
+				urlWhitelist: [],
 			},
 			await this.loadData()
 		);
@@ -101,6 +129,34 @@ export default class SmartBookmarkPlugin extends Plugin {
 		const t = this.settings.defaultLanguage === "zh" ? zh : en;
 
 		try {
+			// Validate AI configuration if enabled
+			if (this.settings.enableCloudAI) {
+				const { AIConfigValidator } = await import('./utils/aiValidator');
+				const validation = await AIConfigValidator.validate(
+					this.settings.cloudAIProvider!,
+					this.settings.cloudAIAPIKey,
+					this.settings.cloudAIBaseURL
+				);
+
+				if (!validation.valid) {
+					const message = AIConfigValidator.getValidationMessage(
+						false,
+						validation.error,
+						this.settings.defaultLanguage as "en" | "zh"
+					);
+					new Notice(message);
+					console.error("[SmartBookmark] AI validation failed:", validation.error);
+					// Continue import without AI
+					this.settings.enableCloudAI = false;
+				} else {
+					new Notice(AIConfigValidator.getValidationMessage(
+						true,
+						undefined,
+						this.settings.defaultLanguage as "en" | "zh"
+					));
+				}
+			}
+
 			new Notice(t.msgImportStarted);
 
 			// Read file content
@@ -306,6 +362,209 @@ export default class SmartBookmarkPlugin extends Plugin {
 			await this.app.vault.adapter.write(filepath, content);
 			new Notice(`${t.pluginName}: Updated ${filename}`);
 		}
+	}
+
+	/**
+	 * Validate bookmark URLs
+	 */
+	private async validateBookmarks() {
+		if (!this.settings.singleDocumentMode) {
+			new Notice("URL validation requires single document mode");
+			return;
+		}
+
+		const t = this.settings.defaultLanguage === "zh" ? zh : en;
+		new Notice("Starting URL validation...");
+
+		try {
+			// Read bookmark file
+			const folder = normalizePath(this.settings.outputFolder);
+			const filename = this.settings.bookmarkFileName;
+			const filepath = `${folder}/${filename}`;
+
+			if (!(await this.app.vault.adapter.exists(filepath))) {
+				new Notice("Bookmark file not found. Import bookmarks first.");
+				return;
+			}
+
+			const content = await this.app.vault.adapter.read(filepath);
+			const { URLValidator } = await import('./utils/urlValidator');
+
+			// Extract URLs from content
+			const urlRegex = /\*\*URL\*\*: (https?:\/\/[^\s\n]+)/g;
+			const urls: string[] = [];
+			let match;
+			while ((match = urlRegex.exec(content)) !== null) {
+				urls.push(match[1]);
+			}
+
+			if (urls.length === 0) {
+				new Notice("No URLs found in bookmarks");
+				return;
+			}
+
+			// Validate URLs
+			const validator = new URLValidator(
+				this.settings.urlValidationTimeout,
+				this.settings.urlWhitelist || []
+			);
+
+			const result = await validator.checkURLs(urls, 10);
+
+			const message = `Validation complete: ${result.valid} valid, ${result.invalid} invalid`;
+			new Notice(message);
+			console.log(`[SmartBookmark] ${message}`);
+
+			if (result.invalid > 0) {
+				console.table(result.invalidUrls);
+			}
+		} catch (error) {
+			console.error("[SmartBookmark] Validation error:", error);
+			new Notice(`Validation error: ${(error as Error).message}`);
+		}
+	}
+
+	/**
+	 * Clean invalid bookmarks
+	 */
+	private async cleanInvalidBookmarks() {
+		if (!this.settings.singleDocumentMode) {
+			new Notice("URL validation requires single document mode");
+			return;
+		}
+
+		const t = this.settings.defaultLanguage === "zh" ? zh : en;
+		new Notice("Starting invalid bookmark cleanup...");
+
+		try {
+			// Read bookmark file
+			const folder = normalizePath(this.settings.outputFolder);
+			const filename = this.settings.bookmarkFileName;
+			const filepath = `${folder}/${filename}`;
+
+			if (!(await this.app.vault.adapter.exists(filepath))) {
+				new Notice("Bookmark file not found. Import bookmarks first.");
+				return;
+			}
+
+			const content = await this.app.vault.adapter.read(filepath);
+			const { URLValidator } = await import('./utils/urlValidator');
+
+			// Extract URLs from content
+			const urlRegex = /\*\*URL\*\*: (https?:\/\/[^\s\n]+)/g;
+			const urls: string[] = [];
+			let match;
+			while ((match = urlRegex.exec(content)) !== null) {
+				urls.push(match[1]);
+			}
+
+			if (urls.length === 0) {
+				new Notice("No URLs found in bookmarks");
+				return;
+			}
+
+			// Validate URLs
+			const validator = new URLValidator(
+				this.settings.urlValidationTimeout,
+				this.settings.urlWhitelist || []
+			);
+
+			const result = await validator.checkURLs(urls, 10);
+
+			if (result.invalid === 0) {
+				new Notice("No invalid bookmarks found");
+				return;
+			}
+
+			// Remove invalid bookmarks from content
+			let cleanedContent = content;
+			let removed = 0;
+
+			for (const invalidUrl of result.invalidUrls) {
+				// Find and remove the bookmark block
+				const bookmarkPattern = new RegExp(
+					`### .+\\n\\n- \\*\\*URL\\*\\*: ${invalidUrl.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^-]+?---\\n\\n`,
+					'g'
+				);
+				const matches = cleanedContent.match(bookmarkPattern);
+				if (matches) {
+					cleanedContent = cleanedContent.replace(bookmarkPattern, '');
+					removed++;
+				}
+			}
+
+			// Write cleaned content
+			await this.app.vault.adapter.write(filepath, cleanedContent);
+			new Notice(`Removed ${removed} invalid bookmarks`);
+		} catch (error) {
+			console.error("[SmartBookmark] Cleanup error:", error);
+			new Notice(`Cleanup error: ${(error as Error).message}`);
+		}
+	}
+
+	/**
+	 * Sync bookmarks (for scheduled sync)
+	 */
+	async syncBookmarks() {
+		if (!this.settings.importPath || this.settings.syncInterval === "manual") {
+			return;
+		}
+
+		const browser: BrowserType = this.detectBrowserFromPath(this.settings.importPath);
+		await this.importBookmarks(browser, this.settings.importPath);
+
+		// Update last sync time
+		this.settings.lastSyncTime = Date.now();
+		await this.saveSettings();
+	}
+
+	/**
+	 * Detect browser type from file path
+	 */
+	private detectBrowserFromPath(filePath: string): BrowserType {
+		const lowerPath = filePath.toLowerCase();
+		if (lowerPath.includes('chrome')) return 'chrome';
+		if (lowerPath.includes('edge')) return 'edge';
+		if (lowerPath.includes('safari')) return 'safari';
+		if (lowerPath.includes('firefox')) return 'firefox';
+		return 'chrome'; // Default
+	}
+
+	/**
+	 * Restart sync timer
+	 */
+	restartSyncTimer() {
+		// Clear existing timer
+		if (this.syncTimer) {
+			clearTimeout(this.syncTimer);
+		}
+
+		// Set up new timer
+		this.setupSyncTimer();
+	}
+
+	/**
+	 * Setup sync timer based on interval
+	 */
+	private setupSyncTimer() {
+		if (this.settings.syncInterval === "manual") {
+			return;
+		}
+
+		const intervals = {
+			hourly: 60 * 60 * 1000,
+			daily: 24 * 60 * 60 * 1000,
+			weekly: 7 * 24 * 60 * 60 * 1000,
+		};
+
+		const interval = intervals[this.settings.syncInterval] || intervals.daily;
+
+		this.syncTimer = setTimeout(async () => {
+			await this.syncBookmarks();
+			this.setupSyncTimer(); // Schedule next sync
+		}, interval);
+
+		console.log(`[SmartBookmark] Next sync in ${this.settings.syncInterval}`);
 	}
 
 	/**

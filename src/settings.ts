@@ -150,6 +150,90 @@ export class SmartBookmarkSettingTab extends PluginSettingTab {
 					})
 			);
 
+		containerEl.createEl("h3", { text: "Sync Settings" });
+
+		// Sync interval
+		new Setting(containerEl)
+			.setName("Sync Frequency")
+			.setDesc("How often to sync bookmarks from browser")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("manual", "Manual")
+					.addOption("hourly", "Hourly")
+					.addOption("daily", "Daily")
+					.addOption("weekly", "Weekly")
+					.setValue(this.plugin.settings.syncInterval || "manual")
+					.onChange(async (value) => {
+						this.plugin.settings.syncInterval = value as any;
+						await this.plugin.saveSettings();
+						// Restart sync timer
+						if ((this.plugin as any).restartSyncTimer) {
+							(this.plugin as any).restartSyncTimer();
+						}
+					})
+			);
+
+		// Last sync time display
+		if (this.plugin.settings.lastSyncTime) {
+			const lastSync = new Date(this.plugin.settings.lastSyncTime);
+			new Setting(containerEl)
+				.setName("Last Sync")
+				.setDesc(lastSync.toLocaleString())
+				.addButton((btn) =>
+					btn
+						.setButtonText("Sync Now")
+						.onClick(() => {
+							if ((this.plugin as any).syncBookmarks) {
+								(this.plugin as any).syncBookmarks();
+							}
+						})
+				);
+		}
+
+		containerEl.createEl("h3", { text: "URL Validation Settings" });
+
+		// Enable URL validation
+		new Setting(containerEl)
+			.setName("Validate URLs")
+			.setDesc("Check if bookmark URLs are accessible")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.validateUrls)
+					.onChange(async (value) => {
+						this.plugin.settings.validateUrls = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// URL validation timeout
+		new Setting(containerEl)
+			.setName("URL Validation Timeout")
+			.setDesc("Request timeout in seconds (default: 5)")
+			.addSlider((slider) =>
+				slider
+					.setLimits(1, 30, 1)
+					.setValue(this.plugin.settings.urlValidationTimeout || 5)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.urlValidationTimeout = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// URL whitelist
+		new Setting(containerEl)
+			.setName("URL Whitelist")
+			.setDesc("URLs to skip validation (one per line)")
+			.addTextArea((text) =>
+				text
+					.setPlaceholder("https://example.com\nhttps://trusted-site.com")
+					.setValue(this.plugin.settings.urlWhitelist?.join('\n') || "")
+					.onChange(async (value) => {
+						this.plugin.settings.urlWhitelist = value.split('\n').filter(url => url.trim());
+						await this.plugin.saveSettings();
+					})
+			);
+
 		containerEl.createEl("h3", { text: "Cloud AI Settings" });
 
 		// Enable cloud AI

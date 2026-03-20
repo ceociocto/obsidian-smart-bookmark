@@ -54,6 +54,40 @@ export interface SmartBookmarkSettings {
 	groupByFolder: boolean;
 	singleDocumentMode: boolean; // Use single document for all bookmarks
 	bookmarkFileName: string; // Filename for single document mode
+
+	// Sync settings
+	syncInterval: "manual" | "hourly" | "daily" | "weekly"; // Sync frequency
+	lastSyncTime?: number; // Last sync timestamp
+
+	// URL validation settings
+	validateUrls: boolean; // Enable URL validation
+	urlValidationTimeout: number; // Request timeout in seconds
+	urlWhitelist: string[]; // URLs to skip validation
+}
+
+/**
+ * Sync interval options
+ */
+export type SyncInterval = "manual" | "hourly" | "daily" | "weekly";
+
+/**
+ * URL validation result
+ */
+export interface URLValidationResult {
+	url: string;
+	valid: boolean;
+	status?: number;
+	error?: string;
+}
+
+/**
+ * URL health check result
+ */
+export interface URLHealthCheckResult {
+	total: number;
+	valid: number;
+	invalid: number;
+	invalidUrls: URLValidationResult[];
 }
 
 /**
