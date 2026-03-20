@@ -3,6 +3,7 @@ import { WebsiteTypeDetector } from "./websiteTypeDetector";
 import { YouTubeAnalyzer } from "./youtubeAnalyzer";
 import { GitHubAnalyzer } from "./githubAnalyzer";
 import { GeneralAnalyzer } from "./generalAnalyzer";
+import { FallbackAnalyzer } from "./fallbackAnalyzer";
 import { YouTubeMetadata, GitHubMetadata, GeneralMetadata } from "../types/websiteMetadata";
 
 /**
@@ -72,7 +73,24 @@ export class EnhancedContentAnalyzer {
 	 */
 	private async analyzeGeneral(url: string): Promise<GeneralMetadata> {
 		const analyzer = new GeneralAnalyzer();
-		return await analyzer.analyze(url);
+
+		try {
+			return await analyzer.analyze(url);
+		} catch (error) {
+			console.warn(`[SmartBookmark] Failed to fetch ${url}, using fallback:`, error);
+
+			// Check if fallback analyzer is enabled
+			// (Note: Need to access settings - this is a limitation of current architecture)
+			// For now, always use fallback on error
+			const fallbackAnalyzer = new FallbackAnalyzer();
+			const result = await fallbackAnalyzer.analyze({
+				id: "fallback",
+				title: "Untitled",
+				url,
+			});
+
+			return result.metadata as GeneralMetadata;
+		}
 	}
 
 	/**

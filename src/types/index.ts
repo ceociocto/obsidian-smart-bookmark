@@ -68,6 +68,7 @@ export interface SmartBookmarkSettings {
 	useEnhancedAnalyzer: boolean; // Use specialized analyzers
 	youtubeAPIKey?: string; // YouTube Data API key
 	githubToken?: string; // GitHub API token
+	enableFallbackAnalyzer: boolean; // Use fallback when fetch fails
 }
 
 /**

@@ -29,6 +29,8 @@ export default {
 	settingsAutoTagDesc: "根据内容自动添加标签",
 	settingsGroupByFolder: "按文件夹分组",
 	settingsGroupByFolderDesc: "按书签文件夹组织笔记",
+	settingsEnableFallbackAnalyzer: "启用备用分析器",
+	settingsEnableFallbackAnalyzerDesc: "当网站阻止直接访问时使用基于 URL 的分析",
 
 	// Modals
 	importModalTitle: "导入书签",

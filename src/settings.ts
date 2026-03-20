@@ -235,6 +235,19 @@ export class SmartBookmarkSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// Enable fallback analyzer
+		new Setting(containerEl)
+			.setName("Enable Fallback Analyzer")
+			.setDesc("Use URL-based analysis when websites block direct access")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableFallbackAnalyzer)
+					.onChange(async (value) => {
+						this.plugin.settings.enableFallbackAnalyzer = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
 		containerEl.createEl("h3", { text: "URL Validation Settings" });
 
 		// Enable URL validation

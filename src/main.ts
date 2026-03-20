@@ -101,6 +101,7 @@ export default class SmartBookmarkPlugin extends Plugin {
 				useEnhancedAnalyzer: true,
 				youtubeAPIKey: "",
 				githubToken: "",
+				enableFallbackAnalyzer: true,
 			},
 			await this.loadData()
 		);

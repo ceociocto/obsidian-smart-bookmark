@@ -29,6 +29,8 @@ export default {
 	settingsAutoTagDesc: "Automatically add tags based on content",
 	settingsGroupByFolder: "Group by Folder",
 	settingsGroupByFolderDesc: "Organize notes by bookmark folders",
+	settingsEnableFallbackAnalyzer: "Enable Fallback Analyzer",
+	settingsEnableFallbackAnalyzerDesc: "Use URL-based analysis when websites block direct access",
 
 	// Modals
 	importModalTitle: "Import Bookmarks",
