@@ -190,6 +190,49 @@ export class SmartBookmarkSettingTab extends PluginSettingTab {
 				);
 		}
 
+		containerEl.createEl("h3", { text: "Enhanced Analysis Settings" });
+
+		// Enable enhanced analyzer
+		new Setting(containerEl)
+			.setName("Use Enhanced Analyzer")
+			.setDesc("Use specialized analyzers for YouTube, GitHub, and other platforms")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.useEnhancedAnalyzer)
+					.onChange(async (value) => {
+						this.plugin.settings.useEnhancedAnalyzer = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// YouTube API key
+		new Setting(containerEl)
+			.setName("YouTube API Key")
+			.setDesc("YouTube Data API v3 key for extracting video details (optional)")
+			.addText((text) =>
+				text
+					.setPlaceholder("AIza...")
+					.setValue(this.plugin.settings.youtubeAPIKey || "")
+					.onChange(async (value) => {
+						this.plugin.settings.youtubeAPIKey = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// GitHub token
+		new Setting(containerEl)
+			.setName("GitHub Token")
+			.setDesc("GitHub Personal Access Token for extracting repository details (optional)")
+			.addText((text) =>
+				text
+					.setPlaceholder("ghp_...")
+					.setValue(this.plugin.settings.githubToken || "")
+					.onChange(async (value) => {
+						this.plugin.settings.githubToken = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
 		containerEl.createEl("h3", { text: "URL Validation Settings" });
 
 		// Enable URL validation

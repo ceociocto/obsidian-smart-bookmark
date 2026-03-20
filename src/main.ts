@@ -98,6 +98,9 @@ export default class SmartBookmarkPlugin extends Plugin {
 				validateUrls: false,
 				urlValidationTimeout: 5,
 				urlWhitelist: [],
+				useEnhancedAnalyzer: true,
+				youtubeAPIKey: "",
+				githubToken: "",
 			},
 			await this.loadData()
 		);
@@ -214,11 +217,25 @@ export default class SmartBookmarkPlugin extends Plugin {
 		};
 
 		// Create analyzer
-		const analyzer = new ContentAnalyzer({
-			fetchMetadata: this.settings.includeMetadata,
-			extractKeywords: this.settings.autoTag,
-			aiAnalysis: this.settings.enableCloudAI,
-		});
+		let analyzer: any;
+
+		if (this.settings.useEnhancedAnalyzer) {
+			const { EnhancedContentAnalyzer } = await import('./analyzer/enhancedContentAnalyzer');
+			analyzer = new EnhancedContentAnalyzer({
+				fetchMetadata: this.settings.includeMetadata,
+				extractKeywords: this.settings.autoTag,
+				aiAnalysis: this.settings.enableCloudAI,
+				youtubeAPIKey: this.settings.youtubeAPIKey,
+				githubToken: this.settings.githubToken,
+			});
+		} else {
+			const { ContentAnalyzer } = await import('./analyzer/contentAnalyzer');
+			analyzer = new ContentAnalyzer({
+				fetchMetadata: this.settings.includeMetadata,
+				extractKeywords: this.settings.autoTag,
+				aiAnalysis: this.settings.enableCloudAI,
+			});
+		}
 
 		// Analyze bookmarks
 		const analyzedBookmarks: AnalyzedBookmark[] = [];

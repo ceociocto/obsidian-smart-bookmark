@@ -63,6 +63,11 @@ export interface SmartBookmarkSettings {
 	validateUrls: boolean; // Enable URL validation
 	urlValidationTimeout: number; // Request timeout in seconds
 	urlWhitelist: string[]; // URLs to skip validation
+
+	// Enhanced analysis settings
+	useEnhancedAnalyzer: boolean; // Use specialized analyzers
+	youtubeAPIKey?: string; // YouTube Data API key
+	githubToken?: string; // GitHub API token
 }
 
 /**
