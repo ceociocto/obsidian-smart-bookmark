@@ -31,6 +31,14 @@ export default {
 	settingsGroupByFolderDesc: "按书签文件夹组织笔记",
 	settingsEnableFallbackAnalyzer: "启用备用分析器",
 	settingsEnableFallbackAnalyzerDesc: "当网站阻止直接访问时使用基于 URL 的分析",
+	settingsUseChromeCDP: "使用 Chrome CDP",
+	settingsUseChromeCDPDesc: "通过 DevTools Protocol 重用 Chrome 的登录状态和 Cookie",
+	settingsChromeCDPPort: "Chrome CDP 端口",
+	settingsChromeCDPPortDesc: "Chrome DevTools Protocol 端口（默认：9222）",
+	settingsTestChromeCDP: "测试连接",
+	msgChromeCDPTesting: "测试 Chrome CDP 连接中...",
+	msgChromeCDPSuccess: "Chrome CDP 连接成功",
+	msgChromeCDPNotAvailable: "Chrome CDP 不可用。请确保 Chrome 使用 --remote-debugging-port=9222 运行",
 
 	// Modals
 	importModalTitle: "导入书签",

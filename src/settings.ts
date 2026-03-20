@@ -248,6 +248,46 @@ export class SmartBookmarkSettingTab extends PluginSettingTab {
 					})
 			);
 
+		containerEl.createEl("div", { text: "ℹ️ To enable Chrome CDP, start Chrome with: --remote-debugging-port=9222" })
+			.addClass("setting-item-description");
+
+		// Use Chrome CDP
+		new Setting(containerEl)
+			.setName("Use Chrome CDP")
+			.setDesc("Reuse Chrome's login state and cookies via DevTools Protocol")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.useChromeCDP)
+					.onChange(async (value) => {
+						this.plugin.settings.useChromeCDP = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// Chrome CDP port
+		new Setting(containerEl)
+			.setName("Chrome CDP Port")
+			.setDesc("Port for Chrome DevTools Protocol (default: 9222)")
+			.addText((text) =>
+				text
+					.setPlaceholder("9222")
+					.setValue(this.plugin.settings.chromeCDPPort?.toString() || "9222")
+					.onChange(async (value) => {
+						const port = parseInt(value);
+						if (!isNaN(port)) {
+							this.plugin.settings.chromeCDPPort = port;
+							await this.plugin.saveSettings();
+						}
+					})
+			)
+			.addButton((btn) =>
+				btn
+					.setButtonText("Test Connection")
+					.onClick(async () => {
+						await this.testChromeCDP();
+					})
+			);
+
 		containerEl.createEl("h3", { text: "URL Validation Settings" });
 
 		// Enable URL validation
@@ -393,6 +433,38 @@ export class SmartBookmarkSettingTab extends PluginSettingTab {
 		} catch (error) {
 			loadingNotice.hide();
 			new Notice("❌ " + t.msgConnectionFailed.replace("{{error}}", (error as Error).message));
+		}
+	}
+
+	/**
+	 * Test Chrome CDP connection
+	 */
+	private async testChromeCDP() {
+		const t = this.plugin.settings.defaultLanguage === "zh" ? zh : en;
+
+		if (!this.plugin.settings.useChromeCDP) {
+			new Notice("Please enable Chrome CDP first");
+			return;
+		}
+
+		const loadingNotice = new Notice("Testing Chrome CDP connection...", 10000);
+
+		try {
+			const { CDPManager } = await import('./utils/cdpManager');
+			const cdpManager = new CDPManager(this.plugin.settings.chromeCDPPort || 9222);
+
+			const available = await cdpManager.isAvailable();
+
+			loadingNotice.hide();
+
+			if (available) {
+				new Notice("✅ Chrome CDP connection successful");
+			} else {
+				new Notice("❌ Chrome CDP not available. Make sure Chrome is running with --remote-debugging-port=9222");
+			}
+		} catch (error) {
+			loadingNotice.hide();
+			new Notice("❌ CDP test failed: " + (error as Error).message);
 		}
 	}
 }

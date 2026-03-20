@@ -31,6 +31,14 @@ export default {
 	settingsGroupByFolderDesc: "Organize notes by bookmark folders",
 	settingsEnableFallbackAnalyzer: "Enable Fallback Analyzer",
 	settingsEnableFallbackAnalyzerDesc: "Use URL-based analysis when websites block direct access",
+	settingsUseChromeCDP: "Use Chrome CDP",
+	settingsUseChromeCDPDesc: "Reuse Chrome's login state and cookies via DevTools Protocol",
+	settingsChromeCDPPort: "Chrome CDP Port",
+	settingsChromeCDPPortDesc: "Port for Chrome DevTools Protocol (default: 9222)",
+	settingsTestChromeCDP: "Test Connection",
+	msgChromeCDPTesting: "Testing Chrome CDP connection...",
+	msgChromeCDPSuccess: "Chrome CDP connection successful",
+	msgChromeCDPNotAvailable: "Chrome CDP not available. Make sure Chrome is running with --remote-debugging-port=9222",
 
 	// Modals
 	importModalTitle: "Import Bookmarks",

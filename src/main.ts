@@ -102,6 +102,8 @@ export default class SmartBookmarkPlugin extends Plugin {
 				youtubeAPIKey: "",
 				githubToken: "",
 				enableFallbackAnalyzer: true,
+				useChromeCDP: false,
+				chromeCDPPort: 9222,
 			},
 			await this.loadData()
 		);
@@ -228,6 +230,8 @@ export default class SmartBookmarkPlugin extends Plugin {
 				aiAnalysis: this.settings.enableCloudAI,
 				youtubeAPIKey: this.settings.youtubeAPIKey,
 				githubToken: this.settings.githubToken,
+				useChromeCDP: this.settings.useChromeCDP,
+				chromeCDPPort: this.settings.chromeCDPPort,
 			});
 		} else {
 			const { ContentAnalyzer } = await import('./analyzer/contentAnalyzer');

@@ -69,6 +69,8 @@ export interface SmartBookmarkSettings {
 	youtubeAPIKey?: string; // YouTube Data API key
 	githubToken?: string; // GitHub API token
 	enableFallbackAnalyzer: boolean; // Use fallback when fetch fails
+	useChromeCDP: boolean; // Use Chrome DevTools Protocol for authenticated content
+	chromeCDPPort: number; // CDP port (default: 9222)
 }
 
 /**

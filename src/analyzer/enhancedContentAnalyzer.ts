@@ -4,6 +4,7 @@ import { YouTubeAnalyzer } from "./youtubeAnalyzer";
 import { GitHubAnalyzer } from "./githubAnalyzer";
 import { GeneralAnalyzer } from "./generalAnalyzer";
 import { FallbackAnalyzer } from "./fallbackAnalyzer";
+import { CDPManager } from "../utils/cdpManager";
 import { YouTubeMetadata, GitHubMetadata, GeneralMetadata } from "../types/websiteMetadata";
 
 /**
@@ -15,6 +16,8 @@ export interface EnhancedAnalysisOptions {
 	aiAnalysis: boolean;
 	youtubeAPIKey?: string;
 	githubToken?: string;
+	useChromeCDP?: boolean;
+	chromeCDPPort?: number;
 }
 
 /**
@@ -22,7 +25,30 @@ export interface EnhancedAnalysisOptions {
  * Uses specialized analyzers for different website types
  */
 export class EnhancedContentAnalyzer {
-	constructor(private options: EnhancedAnalysisOptions) {}
+	private cdpManager?: CDPManager;
+
+	constructor(private options: EnhancedAnalysisOptions) {
+		// Initialize CDP manager if enabled
+		if (options.useChromeCDP) {
+			const port = options.chromeCDPPort || 9222;
+			this.cdpManager = new CDPManager(port);
+			this.connectCDP();
+		}
+	}
+
+	/**
+	 * Connect to Chrome CDP
+	 */
+	private async connectCDP() {
+		if (!this.cdpManager) return;
+
+		const connected = await this.cdpManager.connect();
+		if (connected) {
+			console.log('[SmartBookmark] Chrome CDP connected successfully');
+		} else {
+			console.warn('[SmartBookmark] Chrome CDP connection failed, will use fallback');
+		}
+	}
 
 	/**
 	 * Analyze bookmark with enhanced capabilities
@@ -72,6 +98,25 @@ export class EnhancedContentAnalyzer {
 	 * Analyze general website
 	 */
 	private async analyzeGeneral(url: string): Promise<GeneralMetadata> {
+		// Try CDP first if enabled
+		if (this.cdpManager && this.options.useChromeCDP) {
+			try {
+				const cdpContent = await this.cdpManager.getPageContent(url);
+
+				return {
+					type: "general",
+					title: cdpContent.title || "Untitled",
+					description: cdpContent.description || "",
+					keywords: this.extractKeywords(cdpContent.content),
+					category: this.inferCategory(cdpContent.title + " " + cdpContent.description),
+					coreFunction: cdpContent.description || "Website",
+				};
+			} catch (error) {
+				console.warn('[SmartBookmark] CDP analysis failed, falling back:', error);
+			}
+		}
+
+		// Try normal analyzer
 		const analyzer = new GeneralAnalyzer();
 
 		try {
@@ -79,9 +124,7 @@ export class EnhancedContentAnalyzer {
 		} catch (error) {
 			console.warn(`[SmartBookmark] Failed to fetch ${url}, using fallback:`, error);
 
-			// Check if fallback analyzer is enabled
-			// (Note: Need to access settings - this is a limitation of current architecture)
-			// For now, always use fallback on error
+			// Use fallback analyzer
 			const fallbackAnalyzer = new FallbackAnalyzer();
 			const result = await fallbackAnalyzer.analyze({
 				id: "fallback",
@@ -91,6 +134,51 @@ export class EnhancedContentAnalyzer {
 
 			return result.metadata as GeneralMetadata;
 		}
+	}
+
+	/**
+	 * Extract keywords from content
+	 */
+	private extractKeywords(content: string): string[] {
+		if (!content) return [];
+
+		const words = content.toLowerCase().split(/\s+/);
+		const keywords: string[] = [];
+
+		// Remove common words
+		const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'are', 'was', 'were']);
+
+		for (const word of words) {
+			if (word.length > 3 && !stopWords.has(word)) {
+				keywords.push(word);
+				if (keywords.length >= 5) break;
+			}
+		}
+
+		return keywords;
+	}
+
+	/**
+	 * Infer category from text
+	 */
+	private inferCategory(text: string): string {
+		const lowerText = text.toLowerCase();
+
+		const categories: Array<{ category: string, keywords: string[] }> = [
+			{ category: "documentation", keywords: ["doc", "guide", "tutorial", "api", "reference"] },
+			{ category: "blog", keywords: ["blog", "post", "article", "news"] },
+			{ category: "design", keywords: ["design", "ui", "ux", "interface"] },
+			{ category: "development", keywords: ["code", "developer", "programming", "software"] },
+			{ category: "productivity", keywords: ["tool", "app", "software", "productivity"] },
+		];
+
+		for (const category of categories) {
+			if (category.keywords.some(k => lowerText.includes(k))) {
+				return category.category;
+			}
+		}
+
+		return "general";
 	}
 
 	/**
