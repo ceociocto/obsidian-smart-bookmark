@@ -105,7 +105,9 @@ export default class SmartBookmarkPlugin extends Plugin {
 			let content: string;
 			if (path.isAbsolute(filePath)) {
 				// Use system file system for absolute paths
+				console.log(`[SmartBookmark] Reading absolute path: ${filePath}`);
 				content = fs.readFileSync(filePath, 'utf-8');
+				console.log(`[SmartBookmark] File size: ${content.length} bytes`);
 			} else {
 				// Use vault adapter for relative paths
 				const adapter = this.app.vault.adapter;
@@ -113,8 +115,10 @@ export default class SmartBookmarkPlugin extends Plugin {
 			}
 
 			// Parse bookmarks
+			console.log(`[SmartBookmark] Parsing bookmarks from ${browser}...`);
 			const parser = ParserFactory.create(browser);
 			const bookmarks = await parser.parse(content);
+			console.log(`[SmartBookmark] Found ${bookmarks.length} bookmarks`);
 
 			if (bookmarks.length === 0) {
 				new Notice(t.msgNoBookmarksFound);

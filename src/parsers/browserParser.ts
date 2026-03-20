@@ -15,10 +15,12 @@ export abstract class BrowserParser {
 	}
 
 	protected cleanTitle(title: string): string {
+		if (!title) return "Untitled";
 		return title.trim().replace(/\s+/g, " ");
 	}
 
 	protected cleanUrl(url: string): string {
+		if (!url) return "";
 		return url.trim();
 	}
 
