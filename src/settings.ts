@@ -121,6 +121,35 @@ export class SmartBookmarkSettingTab extends PluginSettingTab {
 					})
 			);
 
+		containerEl.createEl("h3", { text: "Document Mode" });
+
+		// Single document mode
+		new Setting(containerEl)
+			.setName("Single Document Mode")
+			.setDesc("Save all bookmarks to a single markdown file (recommended for AI and quick reference)")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.singleDocumentMode)
+					.onChange(async (value) => {
+						this.plugin.settings.singleDocumentMode = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// Bookmark filename
+		new Setting(containerEl)
+			.setName("Bookmark File Name")
+			.setDesc("Filename for the single document (e.g., Smart Bookmarks.md)")
+			.addText((text) =>
+				text
+					.setPlaceholder("Smart Bookmarks.md")
+					.setValue(this.plugin.settings.bookmarkFileName || "Smart Bookmarks.md")
+					.onChange(async (value) => {
+						this.plugin.settings.bookmarkFileName = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
 		containerEl.createEl("h3", { text: "Cloud AI Settings" });
 
 		// Enable cloud AI

@@ -5,6 +5,7 @@ import { Bookmark, BrowserType, SmartBookmarkSettings, AnalyzedBookmark, ImportP
 import { ParserFactory } from "./parsers/browserParser";
 import { ContentAnalyzer } from "./analyzer/contentAnalyzer";
 import { NoteGenerator } from "./generator/noteGenerator";
+import { SingleDocumentGenerator } from "./generator/singleDocumentGenerator";
 import { ImportModal } from "./modals/importModal";
 import { ProgressModal } from "./modals/progressModal";
 import { SmartBookmarkSettingTab } from "./settings";
@@ -67,6 +68,8 @@ export default class SmartBookmarkPlugin extends Plugin {
 				defaultLanguage: "en",
 				autoTag: true,
 				groupByFolder: false,
+				singleDocumentMode: true,
+				bookmarkFileName: "Smart Bookmarks.md",
 			},
 			await this.loadData()
 		);
@@ -161,13 +164,8 @@ export default class SmartBookmarkPlugin extends Plugin {
 			aiAnalysis: this.settings.enableCloudAI,
 		});
 
-		// Create note generator
-		const generator = new NoteGenerator(
-			this.settings.noteTemplate as any,
-			this.settings.defaultLanguage as "en" | "zh"
-		);
-
 		// Analyze bookmarks
+		const analyzedBookmarks: AnalyzedBookmark[] = [];
 		for (let i = 0; i < bookmarks.length; i++) {
 			const bookmark = bookmarks[i];
 			progress.current = `Analyzing: ${bookmark.title}`;
@@ -179,7 +177,7 @@ export default class SmartBookmarkPlugin extends Plugin {
 
 			try {
 				const analyzed = await analyzer.analyze(bookmark);
-				bookmarks[i] = analyzed;
+				analyzedBookmarks.push(analyzed);
 				processed++;
 			} catch (error) {
 				console.error(`Error analyzing ${bookmark.url}:`, error);
@@ -190,19 +188,30 @@ export default class SmartBookmarkPlugin extends Plugin {
 		}
 
 		// Generate notes
-		for (let i = 0; i < bookmarks.length; i++) {
-			const bookmark = bookmarks[i] as AnalyzedBookmark;
-			progress.current = `Generating: ${bookmark.title}`;
+		if (this.settings.singleDocumentMode) {
+			// Single document mode
+			await this.createSingleDocument(analyzedBookmarks);
+		} else {
+			// Multi document mode (original)
+			const generator = new NoteGenerator(
+				this.settings.noteTemplate as any,
+				this.settings.defaultLanguage as "en" | "zh"
+			);
 
-			if (this.progressModal) {
-				this.progressModal.updateProgress(progress);
-			}
+			for (let i = 0; i < analyzedBookmarks.length; i++) {
+				const bookmark = analyzedBookmarks[i];
+				progress.current = `Generating: ${bookmark.title}`;
 
-			try {
-				await this.createNote(bookmark, generator);
-			} catch (error) {
-				console.error(`Error creating note for ${bookmark.url}:`, error);
-				failed++;
+				if (this.progressModal) {
+					this.progressModal.updateProgress(progress);
+				}
+
+				try {
+					await this.createNote(bookmark, generator);
+				} catch (error) {
+					console.error(`Error creating note for ${bookmark.url}:`, error);
+					failed++;
+				}
 			}
 		}
 
@@ -256,6 +265,46 @@ export default class SmartBookmarkPlugin extends Plugin {
 		} else {
 			// File exists, append or skip
 			console.warn(`Note already exists: ${filepath}`);
+		}
+	}
+
+	/**
+	 * Create or update single document with all bookmarks
+	 */
+	private async createSingleDocument(bookmarks: AnalyzedBookmark[]) {
+		const t = this.settings.defaultLanguage === "zh" ? zh : en;
+
+		// Determine output path
+		const folder = normalizePath(this.settings.outputFolder);
+
+		// Ensure folder exists
+		if (!(await this.app.vault.adapter.exists(folder))) {
+			await this.app.vault.createFolder(folder);
+		}
+
+		// Generate filename
+		const filename = this.settings.bookmarkFileName || "Smart Bookmarks.md";
+		const filepath = `${folder}/${filename}`;
+
+		// Create generator
+		const generator = new SingleDocumentGenerator(this.settings.defaultLanguage as "en" | "zh");
+
+		// Read existing content if file exists
+		let existingContent: string | undefined;
+		if (await this.app.vault.adapter.exists(filepath)) {
+			existingContent = await this.app.vault.adapter.read(filepath);
+		}
+
+		// Generate document content
+		const content = generator.generateDocument(bookmarks, existingContent);
+
+		// Create or update file
+		if (!(await this.app.vault.adapter.exists(filepath))) {
+			await this.app.vault.create(filepath, content);
+			new Notice(`${t.pluginName}: Created ${filename}`);
+		} else {
+			await this.app.vault.adapter.write(filepath, content);
+			new Notice(`${t.pluginName}: Updated ${filename}`);
 		}
 	}
 

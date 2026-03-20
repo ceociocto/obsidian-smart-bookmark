@@ -52,6 +52,8 @@ export interface SmartBookmarkSettings {
 	defaultLanguage: string;
 	autoTag: boolean;
 	groupByFolder: boolean;
+	singleDocumentMode: boolean; // Use single document for all bookmarks
+	bookmarkFileName: string; // Filename for single document mode
 }
 
 /**
