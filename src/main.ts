@@ -1,4 +1,6 @@
 import { Plugin, TFile, Notice, normalizePath } from "obsidian";
+import * as fs from "fs";
+import * as path from "path";
 import { Bookmark, BrowserType, SmartBookmarkSettings, AnalyzedBookmark, ImportProgress } from "./types";
 import { ParserFactory } from "./parsers/browserParser";
 import { ContentAnalyzer } from "./analyzer/contentAnalyzer";
@@ -99,8 +101,16 @@ export default class SmartBookmarkPlugin extends Plugin {
 			new Notice(t.msgImportStarted);
 
 			// Read file content
-			const adapter = this.app.vault.adapter;
-			const content = await adapter.read(filePath);
+			// Detect if path is absolute - if so, use system fs, otherwise use vault adapter
+			let content: string;
+			if (path.isAbsolute(filePath)) {
+				// Use system file system for absolute paths
+				content = fs.readFileSync(filePath, 'utf-8');
+			} else {
+				// Use vault adapter for relative paths
+				const adapter = this.app.vault.adapter;
+				content = await adapter.read(filePath);
+			}
 
 			// Parse bookmarks
 			const parser = ParserFactory.create(browser);
