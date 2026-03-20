@@ -22,7 +22,7 @@ export default {
 	settingsCloudAIProvider: "Cloud AI Provider",
 	settingsCloudAIProviderDesc: "AI service provider",
 	settingsCloudAIAPIKey: "API Key",
-	settingsCloudAIAPIKeyDesc: "API key for cloud AI service",
+	settingsCloudAIAPIKeyDesc: "API key for cloud AI service (optional for local providers)",
 	settingsDefaultLanguage: "Default Language",
 	settingsDefaultLanguageDesc: "Language for generated notes",
 	settingsAutoTag: "Auto Tag",

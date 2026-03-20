@@ -22,7 +22,7 @@ export default {
 	settingsCloudAIProvider: "云端 AI 提供商",
 	settingsCloudAIProviderDesc: "AI 服务提供商",
 	settingsCloudAIAPIKey: "API 密钥",
-	settingsCloudAIAPIKeyDesc: "云端 AI 服务的 API 密钥",
+	settingsCloudAIAPIKeyDesc: "云端 AI 服务的 API 密钥（本地提供商可选）",
 	settingsDefaultLanguage: "默认语言",
 	settingsDefaultLanguageDesc: "生成笔记的语言",
 	settingsAutoTag: "自动标签",

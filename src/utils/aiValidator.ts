@@ -29,12 +29,19 @@ export class AIConfigValidator {
 				const controller = new AbortController();
 				const timeoutId = setTimeout(() => controller.abort(), 5000);
 
+				const headers: HeadersInit = {
+					'Content-Type': 'application/json',
+				};
+
+				// Add API key if provided (some local APIs require it)
+				if (apiKey) {
+					headers['Authorization'] = `Bearer ${apiKey}`;
+				}
+
 				const response = await fetch(`${baseURL}/models`, {
 					method: 'GET',
 					signal: controller.signal,
-					headers: {
-						'Content-Type': 'application/json',
-					},
+					headers,
 				});
 
 				clearTimeout(timeoutId);
