@@ -102,7 +102,7 @@ export class ProgressModal extends Modal {
 		// Show done button if complete
 		if (progress.processed >= progress.total) {
 			const t_complete = this.language === "zh" ? zh : en;
-			this.statusEl.textContent = `${t_complete.progressCompleted}: ${progress.processed}/${progress.total} (${progress.failed} ${t_complete.progressFailed})`;
+			this.statusEl.textContent = `${t_complete.progressModalCompleted}: ${progress.processed}/${progress.total} (${progress.failed} ${t_complete.progressModalFailed})`;
 
 			if ((this as any).doneButton) {
 				(this as any).doneButton.style.display = "block";

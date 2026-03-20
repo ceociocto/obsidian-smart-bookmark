@@ -12,6 +12,7 @@ export class CloudAIClientImpl implements CloudAIClient {
 	constructor(provider: string, apiKey: string, endpoint?: string) {
 		this.provider = provider;
 		this.apiKey = apiKey;
+		// If custom endpoint is provided, use it; otherwise use default
 		this.endpoint = endpoint || this.getDefaultEndpoint(provider);
 	}
 
@@ -64,6 +65,8 @@ export class CloudAIClientImpl implements CloudAIClient {
 				return "https://api.openai.com/v1";
 			case "anthropic":
 				return "https://api.anthropic.com/v1";
+			case "local":
+				return "http://127.0.0.1:8000/v1"; // Default local endpoint
 			default:
 				return "";
 		}
@@ -79,6 +82,11 @@ export class CloudAIClientFactory {
 	}
 
 	static validateAPIKey(provider: string, apiKey: string): boolean {
+		// Local provider doesn't require API key
+		if (provider === "local") {
+			return true;
+		}
+
 		// Basic validation - in production you'd want more thorough checks
 		if (!apiKey || apiKey.length < 10) {
 			return false;

@@ -145,9 +145,24 @@ export class SmartBookmarkSettingTab extends PluginSettingTab {
 					.addOption("openai", t.providerOpenAI)
 					.addOption("anthropic", t.providerAnthropic)
 					.addOption("custom", t.providerCustom)
+					.addOption("local", "Local (OpenAI Compatible)")
 					.setValue(this.plugin.settings.cloudAIProvider || "openai")
 					.onChange(async (value) => {
 						this.plugin.settings.cloudAIProvider = value as CloudAIProvider;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// API Base URL (for local/custom providers)
+		new Setting(containerEl)
+			.setName("API Base URL")
+			.setDesc("Base URL for local or custom OpenAI-compatible API (e.g., http://127.0.0.1:8000/v1)")
+			.addText((text) =>
+				text
+					.setPlaceholder("http://127.0.0.1:8000/v1")
+					.setValue(this.plugin.settings.cloudAIBaseURL || "")
+					.onChange(async (value) => {
+						this.plugin.settings.cloudAIBaseURL = value;
 						await this.plugin.saveSettings();
 					})
 			);
@@ -158,7 +173,7 @@ export class SmartBookmarkSettingTab extends PluginSettingTab {
 			.setDesc(t.settingsCloudAIAPIKeyDesc)
 			.addText((text) =>
 				text
-					.setPlaceholder("sk-...")
+					.setPlaceholder("sk-... (leave empty for local)")
 					.setValue(this.plugin.settings.cloudAIAPIKey || "")
 					.onChange(async (value) => {
 						this.plugin.settings.cloudAIAPIKey = value;

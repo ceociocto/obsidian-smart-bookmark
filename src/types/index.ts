@@ -46,8 +46,9 @@ export interface SmartBookmarkSettings {
 	noteTemplate: string;
 	includeMetadata: boolean;
 	enableCloudAI: boolean;
-	cloudAIProvider?: string;
+	cloudAIProvider?: CloudAIProvider;
 	cloudAIAPIKey?: string;
+	cloudAIBaseURL?: string; // For custom/local providers
 	defaultLanguage: string;
 	autoTag: boolean;
 	groupByFolder: boolean;
@@ -66,7 +67,7 @@ export type BrowserType = "chrome" | "safari" | "edge" | "firefox";
 /**
  * Cloud AI provider
  */
-export type CloudAIProvider = "openai" | "anthropic" | "custom";
+export type CloudAIProvider = "openai" | "anthropic" | "custom" | "local";
 
 /**
  * Analysis result from content analyzer

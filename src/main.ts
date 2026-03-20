@@ -61,6 +61,7 @@ export default class SmartBookmarkPlugin extends Plugin {
 				enableCloudAI: false,
 				cloudAIProvider: "openai",
 				cloudAIAPIKey: "",
+				cloudAIBaseURL: "",
 				defaultLanguage: "en",
 				autoTag: true,
 				groupByFolder: false,
@@ -77,10 +78,11 @@ export default class SmartBookmarkPlugin extends Plugin {
 	 * Show import modal
 	 */
 	private showImportModal() {
-		const t = this.settings.defaultLanguage === "zh" ? zh : en;
+		const lang: "en" | "zh" = this.settings.defaultLanguage as "en" | "zh";
+		const t = lang === "zh" ? zh : en;
 		new ImportModal(
 			this.app,
-			this.settings.defaultLanguage,
+			lang,
 			async (browser: BrowserType, path: string) => {
 				await this.importBookmarks(browser, path);
 			}
@@ -112,7 +114,8 @@ export default class SmartBookmarkPlugin extends Plugin {
 			new Notice(t.msgBookmarksParsed.replace("{{count}}", bookmarks.length.toString()));
 
 			// Create progress modal
-			this.progressModal = new ProgressModal(this.app, this.settings.defaultLanguage, bookmarks.length);
+			const lang: "en" | "zh" = this.settings.defaultLanguage as "en" | "zh";
+			this.progressModal = new ProgressModal(this.app, lang, bookmarks.length);
 			this.progressModal.open();
 
 			// Process bookmarks
@@ -147,7 +150,7 @@ export default class SmartBookmarkPlugin extends Plugin {
 		// Create note generator
 		const generator = new NoteGenerator(
 			this.settings.noteTemplate as any,
-			this.settings.defaultLanguage
+			this.settings.defaultLanguage as "en" | "zh"
 		);
 
 		// Analyze bookmarks
@@ -246,7 +249,7 @@ export default class SmartBookmarkPlugin extends Plugin {
 	 * Open settings tab
 	 */
 	private openSettingTab() {
-		this.app.setting.open();
-		this.app.setting.openTabById("smart-bookmark");
+		(this.app as any).setting.open();
+		(this.app as any).setting.openTabById("smart-bookmark");
 	}
 }
