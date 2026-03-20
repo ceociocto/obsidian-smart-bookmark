@@ -107,8 +107,17 @@ export class NoteGenerator {
 	 * Format date
 	 */
 	private formatDate(timestamp: number): string {
-		const date = new Date(timestamp);
-		return date.toISOString().split("T")[0];
+		try {
+			const date = new Date(timestamp);
+			// Check if date is valid
+			if (isNaN(date.getTime())) {
+				return new Date().toISOString().split("T")[0];
+			}
+			return date.toISOString().split("T")[0];
+		} catch (error) {
+			console.error(`[SmartBookmark] Error formatting date: ${timestamp}`, error);
+			return new Date().toISOString().split("T")[0];
+		}
 	}
 
 	/**

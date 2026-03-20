@@ -6,6 +6,29 @@ import { Bookmark } from "../types";
  * Chrome bookmarks are stored in JSON format
  */
 export class ChromeParser extends BrowserParser {
+
+	/**
+	 * Convert Chrome timestamp (WebKit format) to Unix timestamp (milliseconds)
+	 * Chrome timestamp: microseconds since 1601-01-01 UTC
+	 * Unix timestamp: milliseconds since 1970-01-01 UTC
+	 */
+	private convertChromeDate(chromeTimestamp: string | number): number {
+		try {
+			// Convert to number if string
+			const timestamp = typeof chromeTimestamp === 'string' ? parseFloat(chromeTimestamp) : chromeTimestamp;
+
+			// Chrome uses WebKit timestamp (microseconds since 1601-01-01)
+			// Convert to Unix timestamp (milliseconds since 1970-01-01)
+			// Formula: (chrome_timestamp / 1,000,000) - 11,644,473,600 seconds
+			const unixSeconds = (timestamp / 1_000_000) - 11_644_473_600;
+
+			// Convert to milliseconds
+			return unixSeconds * 1000;
+		} catch (error) {
+			console.error(`[SmartBookmark] Error converting Chrome date: ${chromeTimestamp}`, error);
+			return Date.now();
+		}
+	}
 	async parse(content: string): Promise<Bookmark[]> {
 		const data = JSON.parse(content);
 		const bookmarks: Bookmark[] = [];
@@ -54,7 +77,7 @@ export class ChromeParser extends BrowserParser {
 				id: this.generateId(),
 				title: this.cleanTitle(node.title),
 				url: this.cleanUrl(node.url),
-				dateAdded: node.date_added ? this.formatDate(node.date_added) : Date.now(),
+				dateAdded: node.date_added ? this.convertChromeDate(node.date_added) : Date.now(),
 				folder: folder || "Uncategorized",
 				tags: [],
 			};
