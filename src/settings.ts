@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import SmartBookmarkPlugin from "./main";
 import { SmartBookmarkSettings, CloudAIProvider } from "./types";
 import en from "./i18n/en";
@@ -118,6 +118,8 @@ export class SmartBookmarkSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.defaultLanguage = value as "en" | "zh";
 						await this.plugin.saveSettings();
+						// Immediately refresh settings page to apply new language
+						this.display();
 					})
 			);
 
@@ -335,6 +337,49 @@ export class SmartBookmarkSettingTab extends PluginSettingTab {
 						this.plugin.settings.cloudAIAPIKey = value;
 						await this.plugin.saveSettings();
 					})
+			)
+			.addButton((btn) =>
+				btn
+					.setButtonText(t.btnTestConnection)
+					.onClick(async () => {
+						await this.testAIConnection();
+					})
 			);
+	}
+
+	/**
+	 * Test AI configuration
+	 */
+	private async testAIConnection() {
+		const t = this.plugin.settings.defaultLanguage === "zh" ? zh : en;
+
+		if (!this.plugin.settings.enableCloudAI) {
+			new Notice(t.msgEnableCloudAIFirst);
+			return;
+		}
+
+		const { AIConfigValidator } = await import('./utils/aiValidator');
+
+		// Show loading notice
+		const loadingNotice = new Notice(t.msgTestingConnection, 10000);
+
+		try {
+			const validation = await AIConfigValidator.validate(
+				this.plugin.settings.cloudAIProvider!,
+				this.plugin.settings.cloudAIAPIKey,
+				this.plugin.settings.cloudAIBaseURL
+			);
+
+			loadingNotice.hide();
+
+			if (validation.valid) {
+				new Notice("✅ " + t.msgConnectionSuccess);
+			} else {
+				new Notice("❌ " + t.msgConnectionFailed.replace("{{error}}", validation.error || "Unknown error"));
+			}
+		} catch (error) {
+			loadingNotice.hide();
+			new Notice("❌ " + t.msgConnectionFailed.replace("{{error}}", (error as Error).message));
+		}
 	}
 }

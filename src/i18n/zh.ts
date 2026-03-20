@@ -75,6 +75,13 @@ export default {
 	providerAnthropic: "Anthropic",
 	providerCustom: "自定义",
 
+	// Connection test
+	btnTestConnection: "测试连接",
+	msgTestingConnection: "测试连接中...",
+	msgConnectionSuccess: "连接成功",
+	msgConnectionFailed: "连接失败：{{error}}",
+	msgEnableCloudAIFirst: "请先启用云端 AI",
+
 	// Status
 	statusReady: "就绪",
 	statusProcessing: "处理中...",
