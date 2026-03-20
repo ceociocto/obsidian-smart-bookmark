@@ -1,0 +1,252 @@
+import { Plugin, TFile, Notice, normalizePath } from "obsidian";
+import { Bookmark, BrowserType, SmartBookmarkSettings, AnalyzedBookmark, ImportProgress } from "./types";
+import { ParserFactory } from "./parsers/browserParser";
+import { ContentAnalyzer } from "./analyzer/contentAnalyzer";
+import { NoteGenerator } from "./generator/noteGenerator";
+import { ImportModal } from "./modals/importModal";
+import { ProgressModal } from "./modals/progressModal";
+import { SmartBookmarkSettingTab } from "./settings";
+import en from "./i18n/en";
+import zh from "./i18n/zh";
+
+/**
+ * Smart Bookmark Plugin for Obsidian
+ *
+ * Main plugin class that orchestrates bookmark import, analysis, and note generation
+ */
+export default class SmartBookmarkPlugin extends Plugin {
+	settings: SmartBookmarkSettings;
+	private progressModal: ProgressModal | null = null;
+
+	async onload() {
+		console.log("Loading Smart Bookmark plugin");
+
+		// Load settings
+		await this.loadSettings();
+
+		// Add command to import bookmarks
+		this.addCommand({
+			id: "import-bookmarks",
+			name: en.cmdImportBookmarks,
+			callback: () => this.showImportModal(),
+		});
+
+		// Add command to open settings
+		this.addCommand({
+			id: "open-settings",
+			name: en.cmdOpenSettings,
+			callback: () => this.openSettingTab(),
+		});
+
+		// Add ribbon icon
+		const ribbonIconEl = this.addRibbonIcon("bookmark", en.pluginName, () => {
+			this.showImportModal();
+		});
+
+		// Add settings tab
+		this.addSettingTab(new SmartBookmarkSettingTab(this.app, this));
+	}
+
+	onunload() {
+		console.log("Unloading Smart Bookmark plugin");
+	}
+
+	async loadSettings() {
+		this.settings = Object.assign(
+			{
+				importPath: "",
+				outputFolder: "Bookmarks",
+				noteTemplate: "default",
+				includeMetadata: true,
+				enableCloudAI: false,
+				cloudAIProvider: "openai",
+				cloudAIAPIKey: "",
+				defaultLanguage: "en",
+				autoTag: true,
+				groupByFolder: false,
+			},
+			await this.loadData()
+		);
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
+	}
+
+	/**
+	 * Show import modal
+	 */
+	private showImportModal() {
+		const t = this.settings.defaultLanguage === "zh" ? zh : en;
+		new ImportModal(
+			this.app,
+			this.settings.defaultLanguage,
+			async (browser: BrowserType, path: string) => {
+				await this.importBookmarks(browser, path);
+			}
+		).open();
+	}
+
+	/**
+	 * Import bookmarks from browser file
+	 */
+	private async importBookmarks(browser: BrowserType, filePath: string) {
+		const t = this.settings.defaultLanguage === "zh" ? zh : en;
+
+		try {
+			new Notice(t.msgImportStarted);
+
+			// Read file content
+			const adapter = this.app.vault.adapter;
+			const content = await adapter.read(filePath);
+
+			// Parse bookmarks
+			const parser = ParserFactory.create(browser);
+			const bookmarks = await parser.parse(content);
+
+			if (bookmarks.length === 0) {
+				new Notice(t.msgNoBookmarksFound);
+				return;
+			}
+
+			new Notice(t.msgBookmarksParsed.replace("{{count}}", bookmarks.length.toString()));
+
+			// Create progress modal
+			this.progressModal = new ProgressModal(this.app, this.settings.defaultLanguage, bookmarks.length);
+			this.progressModal.open();
+
+			// Process bookmarks
+			await this.processBookmarks(bookmarks);
+
+		} catch (error) {
+			console.error("Import error:", error);
+			new Notice(t.msgImportFailed.replace("{{error}}", (error as Error).message));
+		}
+	}
+
+	/**
+	 * Process bookmarks: analyze and generate notes
+	 */
+	private async processBookmarks(bookmarks: Bookmark[]) {
+		const t = this.settings.defaultLanguage === "zh" ? zh : en;
+		let processed = 0;
+		let failed = 0;
+		const progress: ImportProgress = {
+			total: bookmarks.length,
+			processed: 0,
+			failed: 0,
+		};
+
+		// Create analyzer
+		const analyzer = new ContentAnalyzer({
+			fetchMetadata: this.settings.includeMetadata,
+			extractKeywords: this.settings.autoTag,
+			aiAnalysis: this.settings.enableCloudAI,
+		});
+
+		// Create note generator
+		const generator = new NoteGenerator(
+			this.settings.noteTemplate as any,
+			this.settings.defaultLanguage
+		);
+
+		// Analyze bookmarks
+		for (let i = 0; i < bookmarks.length; i++) {
+			const bookmark = bookmarks[i];
+			progress.current = `Analyzing: ${bookmark.title}`;
+
+			// Update progress modal
+			if (this.progressModal) {
+				this.progressModal.updateProgress(progress);
+			}
+
+			try {
+				const analyzed = await analyzer.analyze(bookmark);
+				bookmarks[i] = analyzed;
+				processed++;
+			} catch (error) {
+				console.error(`Error analyzing ${bookmark.url}:`, error);
+				failed++;
+			}
+
+			progress.processed = i + 1;
+		}
+
+		// Generate notes
+		for (let i = 0; i < bookmarks.length; i++) {
+			const bookmark = bookmarks[i] as AnalyzedBookmark;
+			progress.current = `Generating: ${bookmark.title}`;
+
+			if (this.progressModal) {
+				this.progressModal.updateProgress(progress);
+			}
+
+			try {
+				await this.createNote(bookmark, generator);
+			} catch (error) {
+				console.error(`Error creating note for ${bookmark.url}:`, error);
+				failed++;
+			}
+		}
+
+		progress.processed = bookmarks.length;
+		progress.failed = failed;
+
+		if (this.progressModal) {
+			this.progressModal.updateProgress(progress);
+		}
+
+		new Notice(t.msgNotesGenerated.replace("{{count}}", (bookmarks.length - failed).toString()));
+	}
+
+	/**
+	 * Create a note from bookmark
+	 */
+	private async createNote(bookmark: AnalyzedBookmark, generator: NoteGenerator) {
+		const t = this.settings.defaultLanguage === "zh" ? zh : en;
+
+		// Generate note content
+		const content = generator.generateNote(bookmark);
+
+		// Determine output path
+		let folder = this.settings.outputFolder;
+
+		if (this.settings.groupByFolder && bookmark.folder) {
+			folder = `${this.settings.outputFolder}/${bookmark.folder.replace(/\//g, "/")}`;
+		}
+
+		folder = normalizePath(folder);
+
+		// Ensure folder exists
+		if (!(await this.app.vault.adapter.exists(folder))) {
+			await this.app.vault.createFolder(folder);
+		}
+
+		// Generate filename
+		let filename = bookmark.title || "Untitled";
+		filename = filename
+			.replace(/[<>:"/\\|?*]/g, "")
+			.replace(/\s+/g, " ")
+			.trim()
+			.substring(0, 100);
+		filename = `${filename}.md`;
+
+		const filepath = `${folder}/${filename}`;
+
+		// Create note
+		if (!(await this.app.vault.adapter.exists(filepath))) {
+			await this.app.vault.create(filepath, content);
+		} else {
+			// File exists, append or skip
+			console.warn(`Note already exists: ${filepath}`);
+		}
+	}
+
+	/**
+	 * Open settings tab
+	 */
+	private openSettingTab() {
+		this.app.setting.open();
+		this.app.setting.openTabById("smart-bookmark");
+	}
+}
